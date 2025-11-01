@@ -1,0 +1,76 @@
+package com.computers.appolo.component;
+
+import com.computers.appolo.config.JwtTokenProvider;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+//import javax.servlet.FilterChain;
+//import javax.servlet.ServletException;
+//import javax.servlet.http.HttpServletRequest;
+//import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@Component
+@RequiredArgsConstructor
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    @Autowired
+    private  JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private  UserDetailsService userDetailsService;
+
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+        // ✅ Read Authorization header
+        String header = request.getHeader("Authorization");
+
+        String token = null;
+        String username = null;
+
+        // ✅ Check if header is present and starts with "Bearer "
+        if (header != null && header.startsWith("Bearer ")) {
+            token = header.split(" ")[1].trim();
+
+            // ✅ Validate and extract username
+            if (jwtTokenProvider.validateToken(token)) {
+                username = jwtTokenProvider.getUsernameFromToken(token);
+            }
+        }
+
+        // ✅ If username extracted & SecurityContext is empty → authenticate user
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+
+            // ✅ Set authentication for this request
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+        }
+
+        // ✅ Continue the filter chain
+        filterChain.doFilter(request, response);
+    }
+}
+
