@@ -24,7 +24,7 @@ public class UserService {
                 .username(req.getUsername())
                 .password(encoder.encode(req.getPassword()))
                 .displayName(req.getDisplayName())
-                .role("ROLE_USER")
+                .role("USER")
                 .build();
 
         return repo.save(user);
